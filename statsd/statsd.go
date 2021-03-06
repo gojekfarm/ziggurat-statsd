@@ -67,20 +67,19 @@ func (s *Client) Gauge(metricName string, value int64, arguments map[string]stri
 }
 
 func (s *Client) PublishHandlerMetrics(handler ziggurat.Handler) ziggurat.Handler {
-	return ziggurat.HandlerFunc(func(messageEvent ziggurat.Event) ziggurat.ProcessStatus {
-		route := messageEvent.Headers()[ziggurat.HeaderMessageRoute]
-		arguments := map[string]string{"route": route}
-		startTime := time.Now()
-		status := handler.HandleEvent(messageEvent)
-		endTime := time.Now()
-		diffTimeInMS := endTime.Sub(startTime).Milliseconds()
-		s.Gauge("handler_func_exec_time", diffTimeInMS, arguments)
-		switch status {
-		case ziggurat.RetryMessage, ziggurat.SkipMessage:
-			s.IncCounter("message_processing_failure_skip_count", 1, arguments)
-		default:
-			s.IncCounter("message_processing_success_count", 1, arguments)
+	return ziggurat.HandlerFunc(func(ctx context.Context, event ziggurat.Event) error {
+		t1 := time.Now()
+		err := handler.HandleEvent(ctx, event)
+		t2 := time.Now()
+		args := map[string]string{
+			"route": event.Headers()[ziggurat.HeaderMessageRoute],
 		}
-		return status
+		s.Gauge("handler_execution_time", t2.Sub(t1).Milliseconds(), args)
+		if err != nil {
+			s.IncCounter("processing_failure_count", 1, args)
+			return err
+		}
+		s.IncCounter("processing_success_count", 1, args)
+		return err
 	})
 }
