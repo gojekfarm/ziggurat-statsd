@@ -2,7 +2,10 @@ package statsd
 
 import (
 	"context"
+	"strconv"
 	"time"
+
+	"github.com/gojekfarm/ziggurat/kafka"
 
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/gojekfarm/ziggurat"
@@ -82,5 +85,22 @@ func (s *Client) PublishHandlerMetrics(handler ziggurat.Handler) ziggurat.Handle
 		}
 		s.IncCounter("processing_success_count", 1, args)
 		return err
+	})
+}
+
+func (s *Client) PublishKafkaLag(handler ziggurat.Handler) ziggurat.Handler {
+	return ziggurat.HandlerFunc(func(ctx context.Context, event ziggurat.Event) error {
+		if kafkaMsg, ok := event.(kafka.Message); !ok {
+			return handler.Handle(ctx, event)
+		} else {
+			now := time.Now()
+			ts := kafkaMsg.Timestamp
+			lagInMS := now.Sub(ts).Milliseconds()
+			s.Gauge("kafka_processing_lag", lagInMS, map[string]string{
+				"topic":     kafkaMsg.Topic,
+				"partition": strconv.Itoa(kafkaMsg.Partition),
+			})
+			return handler.Handle(ctx, event)
+		}
 	})
 }
