@@ -1,14 +1,17 @@
+//+build ignore
 package main
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	"github.com/gojekfarm/ziggurat"
 	"github.com/gojekfarm/ziggurat-statsd/statsd"
 	"github.com/gojekfarm/ziggurat/kafka"
 	"github.com/gojekfarm/ziggurat/logger"
 	"github.com/gojekfarm/ziggurat/mw"
 	"github.com/gojekfarm/ziggurat/router"
-	"time"
 )
 
 func main() {
@@ -34,5 +37,7 @@ func main() {
 	z.StartFunc(func(ctx context.Context) {
 		statsdPub.Run(ctx)
 	})
-	<-z.Run(context.Background(), kafkaStreams, h)
+	if err := z.Run(context.Background(), kafkaStreams, h); err != nil {
+		fmt.Println("run error: ", err)
+	}
 }

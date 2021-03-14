@@ -2,9 +2,10 @@ package statsd
 
 import (
 	"context"
+	"time"
+
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/gojekfarm/ziggurat"
-	"time"
 )
 
 type Client struct {
@@ -69,7 +70,7 @@ func (s *Client) Gauge(metricName string, value int64, arguments map[string]stri
 func (s *Client) PublishHandlerMetrics(handler ziggurat.Handler) ziggurat.Handler {
 	return ziggurat.HandlerFunc(func(ctx context.Context, event ziggurat.Event) error {
 		t1 := time.Now()
-		err := handler.HandleEvent(ctx, event)
+		err := handler.Handle(ctx, event)
 		t2 := time.Now()
 		args := map[string]string{
 			"route": event.Headers()[ziggurat.HeaderMessageRoute],
